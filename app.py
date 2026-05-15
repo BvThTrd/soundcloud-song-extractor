@@ -124,15 +124,16 @@ def download():
         "--extract-audio",
         "--audio-format", fmt,
         "--audio-quality", "0",
-        "--embed-thumbnail",
         "--embed-metadata",
         "--add-metadata",
         "--parse-metadata", "%(uploader)s:%(artist)s",
         "--parse-metadata", f"{today}:%(album)s",
         "--output", output_template,
         "--ffmpeg-location", "/usr/bin/ffmpeg",
-        url,
     ]
+    if fmt in ("mp3", "m4a"):
+        cmd.insert(5, "--embed-thumbnail")
+    cmd.append(url)
 
     try:
         result = run(cmd, capture_output=True, text=True, timeout=120)
@@ -267,15 +268,16 @@ def download_playlist():
         "--extract-audio",
         "--audio-format", fmt,
         "--audio-quality", "0",
-        "--embed-thumbnail",
         "--embed-metadata",
         "--add-metadata",
         "--parse-metadata", "%(uploader)s:%(artist)s",
         "--parse-metadata", f"{today}:%(album)s",
         "--output", output_template,
         "--ffmpeg-location", "/usr/bin/ffmpeg",
-        url,
     ]
+    if fmt in ("mp3", "m4a"):
+        cmd.insert(5, "--embed-thumbnail")
+    cmd.append(url)
 
     try:
         result = run(cmd, capture_output=True, text=True, timeout=600)
