@@ -1,18 +1,19 @@
-import os
-import re
-import uuid
-import subprocess
-import glob
-import json
-import secrets
+from os import environ
+from re import sub
+from uuid import uuid4
+from subprocess import run, TimeoutExpired
+from json import loads
+from secrets import token_hex
+from shutil import rmtree, make_archive
 from datetime import date
 from functools import wraps
-from flask import Flask, request, jsonify, send_file, render_template, after_this_request, session, redirect, url_for
 from pathlib import Path
+from flask import Flask, request, jsonify, send_file, render_template, after_this_request, session, redirect, url_for
+from bcrypt import checkpw
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)
-PASSWORD = os.environ.get("APP_PASSWORD", "soundcloud")
+app.secret_key = token_hex(32)
+PASSWORD_HASH = environ.get("APP_PASSWORD", "").encode()
 
 DOWNLOAD_DIR = Path("/tmp/soundcloud-dl")
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -31,8 +32,8 @@ def login_required(f):
 
 def sanitize_filename(name: str) -> str:
     """Remove characters that are unsafe for filenames."""
-    name = re.sub(r'[\\/*?:"<>|]', "", name)
-    name = re.sub(r"\s+", " ", name).strip()
+    name = sub(r'[\\/*?:"<>|]', "", name)
+    name = sub(r"\s+", " ", name).strip()
     return name[:180]  # cap length
 
 
@@ -41,7 +42,7 @@ def login():
     error = None
     if request.method == "POST":
         pwd = (request.form.get("password") or "").strip()
-        if secrets.compare_digest(pwd, PASSWORD):
+        if PASSWORD_HASH and checkpw(pwd.encode(), PASSWORD_HASH):
             session["authenticated"] = True
             return redirect(url_for("index"))
         error = "Wrong password."
@@ -70,14 +71,14 @@ def get_info():
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        result = subprocess.run(
+        result = run(
             ["yt-dlp", "--dump-json", "--no-playlist", url],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
             return jsonify({"error": "Could not fetch track info. Check the URL."}), 400
 
-        info = json.loads(result.stdout)
+        info = loads(result.stdout)
         return jsonify({
             "title": info.get("title", "Unknown"),
             "uploader": info.get("uploader", info.get("artist", "Unknown")),
@@ -85,7 +86,7 @@ def get_info():
             "thumbnail": info.get("thumbnail", ""),
             "description": (info.get("description") or "")[:300],
         })
-    except subprocess.TimeoutExpired:
+    except TimeoutExpired:
         return jsonify({"error": "Request timed out. Try again."}), 408
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -105,7 +106,7 @@ def download():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    session_id = uuid.uuid4().hex
+    session_id = uuid4().hex
     session_dir = DOWNLOAD_DIR / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
 
@@ -129,12 +130,12 @@ def download():
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        result = run(cmd, capture_output=True, text=True, timeout=120)
 
         if result.returncode != 0:
             # Fallback: try without thumbnail embedding (some tracks fail)
             cmd_fallback = [c for c in cmd if c != "--embed-thumbnail"]
-            result = subprocess.run(cmd_fallback, capture_output=True, text=True, timeout=120)
+            result = run(cmd_fallback, capture_output=True, text=True, timeout=120)
             if result.returncode != 0:
                 return jsonify({"error": "Download failed. The track may be private or geo-restricted."}), 400
 
@@ -153,8 +154,7 @@ def download():
         @after_this_request
         def cleanup(response):
             try:
-                import shutil
-                shutil.rmtree(session_dir, ignore_errors=True)
+                rmtree(session_dir, ignore_errors=True)
             except Exception:
                 pass
             return response
@@ -166,7 +166,7 @@ def download():
             mimetype="audio/mpeg" if fmt == "mp3" else "application/octet-stream",
         )
 
-    except subprocess.TimeoutExpired:
+    except TimeoutExpired:
         return jsonify({"error": "Download timed out. Track may be too long or connection is slow."}), 408
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -182,21 +182,21 @@ def playlist_info():
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        result = subprocess.run(
+        result = run(
             ["yt-dlp", "--flat-playlist", "--dump-single-json", url],
             capture_output=True, text=True, timeout=60
         )
         if result.returncode != 0:
             return jsonify({"error": "Could not fetch playlist info."}), 400
 
-        info = json.loads(result.stdout)
+        info = loads(result.stdout)
         entries = info.get("entries") or []
         return jsonify({
             "title": info.get("title", "Playlist"),
             "track_count": len(entries),
             "uploader": info.get("uploader", info.get("channel", "")),
         })
-    except subprocess.TimeoutExpired:
+    except TimeoutExpired:
         return jsonify({"error": "Request timed out."}), 408
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -206,7 +206,6 @@ def playlist_info():
 @login_required
 def download_playlist():
     """Download all tracks in a SoundCloud playlist and return as a ZIP."""
-    import shutil
     data = request.get_json(silent=True) or {}
     url = (data.get("url") or "").strip()
     fmt = (data.get("format") or "mp3").strip().lower()
@@ -217,7 +216,7 @@ def download_playlist():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    session_id = uuid.uuid4().hex
+    session_id = uuid4().hex
     session_dir = DOWNLOAD_DIR / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
 
@@ -240,11 +239,11 @@ def download_playlist():
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = run(cmd, capture_output=True, text=True, timeout=600)
 
         if result.returncode != 0:
             cmd_fallback = [c for c in cmd if c != "--embed-thumbnail"]
-            result = subprocess.run(cmd_fallback, capture_output=True, text=True, timeout=600)
+            result = run(cmd_fallback, capture_output=True, text=True, timeout=600)
             if result.returncode != 0:
                 return jsonify({"error": "Download failed. The playlist may be private or geo-restricted."}), 400
 
@@ -256,13 +255,13 @@ def download_playlist():
             return jsonify({"error": "Download produced no files."}), 500
 
         zip_base = str(DOWNLOAD_DIR / session_id)
-        shutil.make_archive(zip_base, "zip", session_dir)
+        make_archive(zip_base, "zip", session_dir)
         zip_path = Path(zip_base + ".zip")
 
         @after_this_request
         def cleanup(response):
             try:
-                shutil.rmtree(session_dir, ignore_errors=True)
+                rmtree(session_dir, ignore_errors=True)
                 zip_path.unlink(missing_ok=True)
             except Exception:
                 pass
@@ -275,12 +274,12 @@ def download_playlist():
             mimetype="application/zip",
         )
 
-    except subprocess.TimeoutExpired:
+    except TimeoutExpired:
         return jsonify({"error": "Download timed out. Playlist may be too large."}), 408
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
