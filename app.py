@@ -159,7 +159,7 @@ def download():
         token = uuid4().hex
         _pending_downloads[token] = (
             filepath, safe_name, mime_map.get(fmt, "application/octet-stream"),
-            # lambda: rmtree(session_dir, ignore_errors=True),
+            lambda: rmtree(session_dir, ignore_errors=True),
         )
         return jsonify({"token": token, "filename": safe_name})
 
@@ -285,7 +285,7 @@ def download_playlist():
         token = uuid4().hex
         _pending_downloads[token] = (
             zip_path, "playlist.zip", "application/zip",
-            # lambda: (rmtree(session_dir, ignore_errors=True), zip_path.unlink(missing_ok=True)),
+            lambda: (rmtree(session_dir, ignore_errors=True), zip_path.unlink(missing_ok=True)),
         )
         return jsonify({"token": token, "filename": "playlist.zip"})
 
