@@ -9,7 +9,7 @@ from datetime import date
 from functools import wraps
 from pathlib import Path
 import threading
-from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, stream_with_context
 from bcrypt import checkpw
 
 app = Flask(__name__)
@@ -190,15 +190,24 @@ def get_file(token):
         do_cleanup()
         return jsonify({"error": "File no longer available"}), 404
 
-    threading.Timer(300.0, do_cleanup).start()
+    file_size = filepath.stat().st_size
 
-    return send_file(
-        filepath,
-        as_attachment=True,
-        download_name=safe_name,
+    def generate():
+        try:
+            with open(filepath, "rb") as f:
+                while chunk := f.read(65536):
+                    yield chunk
+        finally:
+            threading.Timer(1.0, do_cleanup).start()
+
+    return Response(
+        stream_with_context(generate()),
         mimetype="application/octet-stream",
-        conditional=False,
-        max_age=0,
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "Content-Length": str(file_size),
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
     )
 
 
