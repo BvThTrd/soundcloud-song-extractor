@@ -155,7 +155,7 @@ def download():
         filepath = files[0]
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
-        mime_map = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
+        mime_map = {"mp3": "audio/mpeg", "m4a": "application/octet-stream", "flac": "application/octet-stream", "wav": "audio/wav"}
         token = uuid4().hex
         _pending_downloads[token] = (
             filepath, safe_name, mime_map.get(fmt, "application/octet-stream"),
