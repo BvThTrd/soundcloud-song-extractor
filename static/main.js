@@ -68,7 +68,9 @@ async function _runTrack(url, fmt, qid) {
     const a = document.createElement('a');
     a.href = '/get-file/' + data.token;
     a.download = data.filename || ('track.' + fmt);
-    document.body.appendChild(a); a.click(); a.remove();
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 5000);
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
@@ -96,7 +98,9 @@ async function _runPlaylist(url, fmt, qid) {
     const a = document.createElement('a');
     a.href = '/get-file/' + data.token;
     a.download = 'playlist.zip';
-    document.body.appendChild(a); a.click(); a.remove();
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 5000);
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
