@@ -1,4 +1,138 @@
-// -- DOWNLOAD QUEUE --
+// -- CONCURRENCY POOL --
+const MAX_CONCURRENT = 5;
+let _activeCount = 0;
+const _pending = []; // { type:'track'|'playlist', url, fmt, qid }
+
+function _updatePendingBadges() {
+  _pending.forEach((job, i) => {
+    const el = document.querySelector('[data-dlid="' + job.qid + '"]');
+    if (el) el.querySelector('.dl-badge').textContent = '#' + (i + 1) + ' in queue';
+  });
+}
+
+function _onJobFinish(qid, state) {
+  dlUpdate(qid, state);
+  _activeCount--;
+  if (_pending.length > 0) {
+    const job = _pending.shift();
+    _updatePendingBadges();
+    if (job.type === 'track') _runTrack(job.url, job.fmt, job.qid);
+    else _runPlaylist(job.url, job.fmt, job.qid);
+  }
+}
+
+function _setItemLive(qid, state, badge) {
+  const el = document.querySelector('[data-dlid="' + qid + '"]');
+  if (!el) return;
+  el.className = 'dl-item ' + state;
+  el.querySelector('.dl-badge').textContent = badge;
+  el.querySelector('.dl-spinner').style.display = '';
+}
+
+async function _runTrack(url, fmt, qid) {
+  _activeCount++;
+  _setItemLive(qid, 'fetching', 'Fetching…');
+
+  // Fetch track info (format captured at enqueue time, not here)
+  try {
+    const infoRes = await guardedFetch('/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (infoRes && infoRes.ok) {
+      const data = await infoRes.json();
+      if (data && !data.error) dlSetInfo(qid, data);
+      else dlSetFallback(qid, _labelFromUrl(url));
+    } else {
+      dlSetFallback(qid, _labelFromUrl(url));
+    }
+  } catch {
+    dlSetFallback(qid, _labelFromUrl(url));
+  }
+
+  // Download
+  try {
+    const res = await guardedFetch('/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, format: fmt }) // fmt locked at click time
+    });
+    if (!res) { _onJobFinish(qid, 'error'); return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setStatus(data.error || 'Download failed.', 'error');
+      _onJobFinish(qid, 'error');
+      return;
+    }
+    const disp = res.headers.get('Content-Disposition') || '';
+    let filename = 'track.' + fmt;
+    const match = disp.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i);
+    if (match) filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
+    const blob = await res.blob();
+    const objURL = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objURL; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(objURL);
+    _onJobFinish(qid, 'done');
+  } catch (err) {
+    setStatus('Network error: ' + err.message, 'error');
+    _onJobFinish(qid, 'error');
+  }
+}
+
+async function _runPlaylist(url, fmt, qid) {
+  _activeCount++;
+  _setItemLive(qid, 'downloading', 'Downloading…');
+
+  try {
+    const res = await guardedFetch('/download-playlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, format: fmt })
+    });
+    if (!res) { _onJobFinish(qid, 'error'); return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setStatus(data.error || 'Playlist download failed.', 'error');
+      _onJobFinish(qid, 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const objURL = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objURL; a.download = 'playlist.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(objURL);
+    _onJobFinish(qid, 'done');
+  } catch (err) {
+    setStatus('Network error: ' + err.message, 'error');
+    _onJobFinish(qid, 'error');
+  }
+}
+
+function enqueueTrack(url, fmt) {
+  const qid = dlAdd(fmt);
+  if (_activeCount < MAX_CONCURRENT) {
+    _runTrack(url, fmt, qid);
+  } else {
+    _pending.push({ type: 'track', url, fmt, qid });
+    dlSetQueued(qid, _pending.length);
+  }
+}
+
+function enqueuePlaylist(url, fmt, title, meta) {
+  const qid = dlAddPlaylist(title, meta, fmt);
+  if (_activeCount < MAX_CONCURRENT) {
+    _runPlaylist(url, fmt, qid);
+  } else {
+    _pending.push({ type: 'playlist', url, fmt, qid });
+    dlSetQueued(qid, _pending.length);
+  }
+}
+
+// -- DOWNLOAD QUEUE UI --
 let _dlId = 0;
 
 function _esc(s) {
@@ -37,23 +171,29 @@ function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
       '<div class="dl-badge">' + badge + '</div>' +
     '</div>' +
     '<button class="dl-item-close" title="Dismiss">\xd7</button>';
+
   item.querySelector('.dl-item-close').addEventListener('click', () => {
+    // Cancel if still pending
+    const idx = _pending.findIndex(j => j.qid === id);
+    if (idx !== -1) {
+      _pending.splice(idx, 1);
+      _updatePendingBadges();
+    }
     item.remove();
     if (!list.children.length) list.classList.remove('has-items');
   });
+
   list.insertBefore(item, list.firstChild);
   list.classList.add('has-items');
   return item;
 }
 
-// Create a queue entry for a single track (starts in "fetching" state)
 function dlAdd(fmt) {
   const id = ++_dlId;
   _makeItem(id, _THUMB_PH, 'Loading…', '', 'Fetching…', 'fetching', fmt);
   return id;
 }
 
-// Create a queue entry for a playlist (starts directly in "downloading" state)
 function dlAddPlaylist(title, meta, fmt) {
   const id = ++_dlId;
   const thumbSvg =
@@ -63,7 +203,14 @@ function dlAddPlaylist(title, meta, fmt) {
   return id;
 }
 
-// Update a queue entry with fetched track info, transition to "downloading"
+function dlSetQueued(id, pos) {
+  const item = document.querySelector('[data-dlid="' + id + '"]');
+  if (!item) return;
+  item.className = 'dl-item queued';
+  item.querySelector('.dl-badge').textContent = '#' + pos + ' in queue';
+  item.querySelector('.dl-spinner').style.display = 'none';
+}
+
 function dlSetInfo(id, info) {
   const item = document.querySelector('[data-dlid="' + id + '"]');
   if (!item) return;
@@ -72,7 +219,7 @@ function dlSetInfo(id, info) {
   const parts = [];
   if (info.uploader) parts.push(info.uploader);
   if (info.duration) parts.push(fmtDuration(info.duration));
-  item.querySelector('.dl-meta').textContent = parts.join(' · ');
+  item.querySelector('.dl-meta').textContent = parts.join(' \xb7 ');
   item.querySelector('.dl-badge').textContent = 'Downloading…';
   if (info.thumbnail) {
     const img = document.createElement('img');
@@ -84,7 +231,6 @@ function dlSetInfo(id, info) {
   }
 }
 
-// Fallback when info fetch fails: show URL slug as title, transition to "downloading"
 function dlSetFallback(id, label) {
   const item = document.querySelector('[data-dlid="' + id + '"]');
   if (!item) return;
@@ -93,7 +239,6 @@ function dlSetFallback(id, label) {
   item.querySelector('.dl-badge').textContent = 'Downloading…';
 }
 
-// Transition a queue entry to done or error state
 function dlUpdate(id, state) {
   const item = document.querySelector('[data-dlid="' + id + '"]');
   if (!item) return;
@@ -156,11 +301,6 @@ function setStatus(msg, type) {
 function clearStatus() {
   document.getElementById('status').className = 'status';
 }
-function setProgress(visible, label) {
-  const w = document.getElementById('progressWrap');
-  w.className = visible ? 'progress-wrap visible' : 'progress-wrap';
-  if (label) document.getElementById('progressLabel').textContent = label;
-}
 function fmtDuration(secs) {
   if (!secs) return '';
   const m = Math.floor(secs / 60);
@@ -172,83 +312,11 @@ function getURL() {
 }
 
 // -- DOWNLOAD (single track) --
-document.getElementById('dlBtn').addEventListener('click', async () => {
+document.getElementById('dlBtn').addEventListener('click', () => {
   const url = getURL();
   if (!url) { setStatus('Paste a SoundCloud URL first.', 'error'); return; }
   clearStatus();
-
-  const dlBtn = document.getElementById('dlBtn');
-  dlBtn.disabled = true;
-  dlBtn.textContent = 'Working...';
-
-  const qid = dlAdd(selectedFormat);
-
-  // Step 1: fetch track info for the queue preview
-  setProgress(true, 'Fetching track info...');
-  try {
-    const infoRes = await guardedFetch('/info', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    if (infoRes && infoRes.ok) {
-      const data = await infoRes.json();
-      if (data && !data.error) {
-        dlSetInfo(qid, data);
-      } else {
-        dlSetFallback(qid, _labelFromUrl(url));
-      }
-    } else {
-      dlSetFallback(qid, _labelFromUrl(url));
-    }
-  } catch {
-    dlSetFallback(qid, _labelFromUrl(url));
-  }
-
-  // Step 2: download
-  setProgress(true, 'Downloading & converting...');
-  try {
-    const res = await guardedFetch('/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, format: selectedFormat })
-    });
-
-    setProgress(false);
-    dlBtn.disabled = false;
-    dlBtn.textContent = 'Download';
-
-    if (!res) { dlUpdate(qid, 'error'); return; }
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      dlUpdate(qid, 'error');
-      setStatus(data.error || 'Download failed.', 'error');
-      return;
-    }
-
-    const disp = res.headers.get('Content-Disposition') || '';
-    let filename = 'track.' + selectedFormat;
-    const match = disp.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i);
-    if (match) filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
-
-    const blob = await res.blob();
-    const objURL = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objURL;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objURL);
-
-    dlUpdate(qid, 'done');
-  } catch (err) {
-    setProgress(false);
-    dlBtn.disabled = false;
-    dlBtn.textContent = 'Download';
-    dlUpdate(qid, 'error');
-    setStatus('Network error: ' + err.message, 'error');
-  }
+  enqueueTrack(url, selectedFormat); // selectedFormat locked here at click time
 });
 
 // -- PLAYLIST HELPERS --
@@ -260,7 +328,6 @@ async function fetchPlaylistInfo(url) {
   const bar = document.getElementById('playlistBar');
   bar.classList.add('visible');
   document.getElementById('playlistLabel').textContent = 'Loading playlist info...';
-
   try {
     const res = await guardedFetch('/playlist-info', {
       method: 'POST',
@@ -298,7 +365,7 @@ document.getElementById('urlInput').addEventListener('input', () => {
 });
 
 // -- DOWNLOAD ALL (playlist) --
-document.getElementById('dlAllBtn').addEventListener('click', async () => {
+document.getElementById('dlAllBtn').addEventListener('click', () => {
   const url = getURL();
   if (!url) { setStatus('Paste a SoundCloud playlist URL first.', 'error'); return; }
   clearStatus();
@@ -307,50 +374,7 @@ document.getElementById('dlAllBtn').addEventListener('click', async () => {
   const countMatch = labelText.match(/(\d+)\s+track/);
   const count = countMatch ? parseInt(countMatch[1]) : 0;
   const plTitle = labelText.replace(/\s*—.*$/, '').trim() || 'Playlist';
-  const plMeta = 'Playlist · ' + (count ? count + ' tracks · ' : '') + 'ZIP';
+  const plMeta = 'Playlist\xb7' + (count ? count + ' tracks\xb7' : '') + 'ZIP';
 
-  setProgress(true, `Downloading playlist${count ? ` (${count} tracks)` : ''}… this may take a while.`);
-  const btn = document.getElementById('dlAllBtn');
-  btn.disabled = true;
-  btn.textContent = 'Working...';
-
-  const qid = dlAddPlaylist(plTitle, plMeta, selectedFormat);
-
-  try {
-    const res = await guardedFetch('/download-playlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, format: selectedFormat })
-    });
-
-    setProgress(false);
-    btn.disabled = false;
-    btn.textContent = 'Download All (ZIP)';
-
-    if (!res) { dlUpdate(qid, 'error'); return; }
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      dlUpdate(qid, 'error');
-      setStatus(data.error || 'Playlist download failed.', 'error');
-      return;
-    }
-
-    const blob = await res.blob();
-    const objURL = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objURL;
-    a.download = 'playlist.zip';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objURL);
-
-    dlUpdate(qid, 'done');
-  } catch (err) {
-    setProgress(false);
-    btn.disabled = false;
-    btn.textContent = 'Download All (ZIP)';
-    dlUpdate(qid, 'error');
-    setStatus('Network error: ' + err.message, 'error');
-  }
+  enqueuePlaylist(url, selectedFormat, plTitle, plMeta); // selectedFormat locked here
 });
