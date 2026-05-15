@@ -65,11 +65,13 @@ async function _runTrack(url, fmt, qid) {
       _onJobFinish(qid, 'error');
       return;
     }
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = '/get-file/' + data.token;
-    document.body.appendChild(iframe);
-    setTimeout(() => iframe.remove(), 120000);
+    const a = document.createElement('a');
+    a.href = '/get-file/' + data.token;
+    a.download = data.filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 1000);
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
@@ -94,11 +96,13 @@ async function _runPlaylist(url, fmt, qid) {
       _onJobFinish(qid, 'error');
       return;
     }
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = '/get-file/' + data.token;
-    document.body.appendChild(iframe);
-    setTimeout(() => iframe.remove(), 120000);
+    const a = document.createElement('a');
+    a.href = '/get-file/' + data.token;
+    a.download = data.filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 1000);
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');

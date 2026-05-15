@@ -162,7 +162,7 @@ def download():
         app.logger.warning("Selected file: %s (%d bytes)", filepath.name, filepath.stat().st_size)
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
-        mime_map = {"mp3": "audio/mpeg", "m4a": "application/octet-stream", "flac": "application/octet-stream", "wav": "audio/wav"}
+        mime_map = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
         token = uuid4().hex
         _pending_downloads[token] = (
             filepath, safe_name, mime_map.get(fmt, "application/octet-stream"),
@@ -185,7 +185,7 @@ def get_file(token):
     if not entry:
         return jsonify({"error": "Invalid or expired download token"}), 404
 
-    filepath, safe_name, _mimetype, do_cleanup = entry
+    filepath, safe_name, mimetype, do_cleanup = entry
 
     if not filepath.exists():
         do_cleanup()
@@ -203,7 +203,7 @@ def get_file(token):
 
     return Response(
         stream_with_context(generate()),
-        mimetype="application/octet-stream",
+        mimetype=mimetype,
         headers={
             "Content-Disposition": f'attachment; filename="{safe_name}"',
             "Content-Length": str(file_size),
