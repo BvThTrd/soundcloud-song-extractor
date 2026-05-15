@@ -8,7 +8,7 @@ from shutil import rmtree, make_archive
 from datetime import date
 from functools import wraps
 from pathlib import Path
-from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, after_this_request
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response
 from bcrypt import checkpw
 
 app = Flask(__name__)
@@ -180,12 +180,20 @@ def get_file(token):
 
     filepath, safe_name, mimetype, do_cleanup = entry
 
-    @after_this_request
-    def cleanup(response):
+    try:
+        data = filepath.read_bytes()
+    finally:
         do_cleanup()
-        return response
 
-    return send_file(filepath, as_attachment=True, download_name=safe_name, mimetype=mimetype)
+    return Response(
+        data,
+        mimetype=mimetype,
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "Content-Length": str(len(data)),
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 @app.route("/playlist-info", methods=["POST"])
