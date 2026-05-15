@@ -58,25 +58,8 @@
       <span id="playlistLabel">Loading playlist...</span>
     </div>
 
-    <!-- PREVIEW -->
-    <div class="preview" id="preview">
-      <div class="preview-thumb-placeholder" id="thumbPlaceholder">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="#2E3D52" stroke-width="1.5"/>
-          <path d="M9 8l8 4-8 4V8z" fill="#5A6880"/>
-        </svg>
-      </div>
-      <img class="preview-thumb" id="thumbImg" style="display:none" alt="cover" />
-      <div class="preview-info">
-        <div class="preview-title" id="previewTitle">-</div>
-        <div class="preview-artist" id="previewArtist">-</div>
-        <div class="preview-duration" id="previewDuration"></div>
-      </div>
-    </div>
-
     <!-- BUTTONS -->
     <div class="btn-row">
-      <button class="btn btn-secondary" id="infoBtn">Preview</button>
       <button class="btn btn-primary" id="dlBtn">Download</button>
     </div>
     <button class="btn btn-playlist" id="dlAllBtn" style="display:none">Download All (ZIP)</button>
@@ -89,6 +72,9 @@
 
     <!-- STATUS -->
     <div class="status" id="status"></div>
+
+    <!-- DOWNLOAD QUEUE -->
+    <div class="dl-queue" id="dlQueue"></div>
 
   </div>
 
