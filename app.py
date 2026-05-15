@@ -159,7 +159,7 @@ def download():
         token = uuid4().hex
         _pending_downloads[token] = (
             filepath, safe_name, mime_map.get(fmt, "application/octet-stream"),
-            lambda: None,  # TODO: re-enable cleanup: rmtree(session_dir, ignore_errors=True)
+            lambda: rmtree(session_dir, ignore_errors=True),
         )
         return jsonify({"token": token, "filename": safe_name})
 
@@ -181,18 +181,30 @@ def get_file(token):
     filepath, safe_name, mimetype, do_cleanup = entry
 
     try:
-        data = filepath.read_bytes()
-    finally:
-        do_cleanup()
+        file_size = filepath.stat().st_size
+    except FileNotFoundError:
+        return jsonify({"error": "File no longer available"}), 404
+
+    def generate():
+        try:
+            with open(filepath, "rb") as f:
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+        finally:
+            do_cleanup()
 
     return Response(
-        data,
+        generate(),
         mimetype=mimetype,
         headers={
             "Content-Disposition": f'attachment; filename="{safe_name}"',
-            "Content-Length": str(len(data)),
+            "Content-Length": str(file_size),
             "Cache-Control": "no-cache",
         },
+        direct_passthrough=True,
     )
 
 
@@ -285,7 +297,7 @@ def download_playlist():
         token = uuid4().hex
         _pending_downloads[token] = (
             zip_path, "playlist.zip", "application/zip",
-            lambda: None,  # TODO: re-enable cleanup: (rmtree(session_dir, ignore_errors=True), zip_path.unlink(missing_ok=True)),
+            lambda: (rmtree(session_dir, ignore_errors=True), zip_path.unlink(missing_ok=True)),
         )
         return jsonify({"token": token, "filename": "playlist.zip"})
 
