@@ -144,15 +144,20 @@ def download():
                 return jsonify({"error": "Download failed. The track may be private or geo-restricted."}), 400
 
         # Find the downloaded file
-        files = list(session_dir.glob(f"*.{fmt}"))
+        all_files = list(session_dir.glob("*.*"))
+        app.logger.warning("yt-dlp stdout: %s", result.stdout[-500:] if result.stdout else "")
+        app.logger.warning("yt-dlp stderr: %s", result.stderr[-500:] if result.stderr else "")
+        app.logger.warning("Files in session dir: %s", [(f.name, f.stat().st_size) for f in all_files])
+
+        files = [f for f in all_files if f.suffix.lower() == f".{fmt}"]
         if not files:
-            # Try any audio file
-            files = list(session_dir.glob("*.*"))
+            files = [f for f in all_files if f.suffix.lower() not in (".jpg", ".jpeg", ".png", ".webp", ".part")]
 
         if not files:
             return jsonify({"error": "Download produced no file."}), 500
 
-        filepath = files[0]
+        filepath = max(files, key=lambda f: f.stat().st_size)
+        app.logger.warning("Selected file: %s (%d bytes)", filepath.name, filepath.stat().st_size)
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
         mime_map = {"mp3": "audio/mpeg", "m4a": "application/octet-stream", "flac": "application/octet-stream", "wav": "audio/wav"}
