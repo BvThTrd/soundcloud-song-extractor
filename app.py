@@ -183,33 +183,24 @@ def get_file(token):
     if not entry:
         return jsonify({"error": "Invalid or expired download token"}), 404
 
-    filepath, safe_name, mimetype, do_cleanup = entry
+    filepath, safe_name, _mimetype, do_cleanup = entry
 
     try:
-        file_size = filepath.stat().st_size
-    except FileNotFoundError:
+        data = filepath.read_bytes()
+    except OSError:
         return jsonify({"error": "File no longer available"}), 404
-
-    def generate():
-        try:
-            with open(filepath, "rb") as f:
-                while True:
-                    chunk = f.read(65536)
-                    if not chunk:
-                        break
-                    yield chunk
-        finally:
-            do_cleanup()
+    finally:
+        do_cleanup()
 
     return Response(
-        generate(),
-        mimetype=mimetype,
+        data,
+        mimetype="application/octet-stream",
         headers={
             "Content-Disposition": f'attachment; filename="{safe_name}"',
-            "Content-Length": str(file_size),
+            "Content-Length": str(len(data)),
             "Cache-Control": "no-cache",
+            "Connection": "close",
         },
-        direct_passthrough=True,
     )
 
 
