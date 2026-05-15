@@ -65,12 +65,7 @@ async function _runTrack(url, fmt, qid) {
       _onJobFinish(qid, 'error');
       return;
     }
-    const a = document.createElement('a');
-    a.href = '/get-file/' + data.token;
-    a.download = data.filename || ('track.' + fmt);
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 5000);
+    window.location.href = '/get-file/' + data.token;
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
@@ -95,12 +90,7 @@ async function _runPlaylist(url, fmt, qid) {
       _onJobFinish(qid, 'error');
       return;
     }
-    const a = document.createElement('a');
-    a.href = '/get-file/' + data.token;
-    a.download = 'playlist.zip';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 5000);
+    window.location.href = '/get-file/' + data.token;
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
