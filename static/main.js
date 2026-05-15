@@ -59,22 +59,16 @@ async function _runTrack(url, fmt, qid) {
       body: JSON.stringify({ url, format: fmt }) // fmt locked at click time
     });
     if (!res) { _onJobFinish(qid, 'error'); return; }
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
       setStatus(data.error || 'Download failed.', 'error');
       _onJobFinish(qid, 'error');
       return;
     }
-    const disp = res.headers.get('Content-Disposition') || '';
-    let filename = 'track.' + fmt;
-    const match = disp.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i);
-    if (match) filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
-    const blob = await res.blob();
-    const objURL = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = objURL; a.download = filename;
+    a.href = '/get-file/' + data.token;
+    a.download = data.filename || ('track.' + fmt);
     document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(objURL);
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
@@ -93,18 +87,16 @@ async function _runPlaylist(url, fmt, qid) {
       body: JSON.stringify({ url, format: fmt })
     });
     if (!res) { _onJobFinish(qid, 'error'); return; }
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
       setStatus(data.error || 'Playlist download failed.', 'error');
       _onJobFinish(qid, 'error');
       return;
     }
-    const blob = await res.blob();
-    const objURL = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = objURL; a.download = 'playlist.zip';
+    a.href = '/get-file/' + data.token;
+    a.download = 'playlist.zip';
     document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(objURL);
     _onJobFinish(qid, 'done');
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');

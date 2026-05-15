@@ -19,6 +19,9 @@ PASSWORD_HASH = _raw_pw.encode() if _raw_pw.startswith("$2") else None
 DOWNLOAD_DIR = Path("/tmp/soundcloud-dl")
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# Short-lived download tokens: {token: (filepath, session_dir, safe_name, mimetype)}
+_pending_downloads: dict = {}
+
 
 def login_required(f):
     @wraps(f)
@@ -153,23 +156,36 @@ def download():
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
         mime_map = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
-
-        @after_this_request
-        def cleanup(response):
-            rmtree(session_dir, ignore_errors=True)
-            return response
-
-        return send_file(
-            filepath,
-            as_attachment=True,
-            download_name=safe_name,
-            mimetype=mime_map.get(fmt, "application/octet-stream"),
+        token = uuid4().hex
+        _pending_downloads[token] = (
+            filepath, safe_name, mime_map.get(fmt, "application/octet-stream"),
+            lambda: rmtree(session_dir, ignore_errors=True),
         )
+        return jsonify({"token": token, "filename": safe_name})
 
     except TimeoutExpired:
+        rmtree(session_dir, ignore_errors=True)
         return jsonify({"error": "Download timed out. Track may be too long or connection is slow."}), 408
     except Exception as e:
+        rmtree(session_dir, ignore_errors=True)
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/get-file/<token>")
+@login_required
+def get_file(token):
+    entry = _pending_downloads.pop(token, None)
+    if not entry:
+        return jsonify({"error": "Invalid or expired download token"}), 404
+
+    filepath, safe_name, mimetype, do_cleanup = entry
+
+    @after_this_request
+    def cleanup(response):
+        do_cleanup()
+        return response
+
+    return send_file(filepath, as_attachment=True, download_name=safe_name, mimetype=mimetype)
 
 
 @app.route("/playlist-info", methods=["POST"])
@@ -258,22 +274,18 @@ def download_playlist():
         make_archive(zip_base, "zip", session_dir)
         zip_path = Path(zip_base + ".zip")
 
-        @after_this_request
-        def cleanup(response):
-            rmtree(session_dir, ignore_errors=True)
-            zip_path.unlink(missing_ok=True)
-            return response
-
-        return send_file(
-            zip_path,
-            as_attachment=True,
-            download_name="playlist.zip",
-            mimetype="application/zip",
+        token = uuid4().hex
+        _pending_downloads[token] = (
+            zip_path, "playlist.zip", "application/zip",
+            lambda: (rmtree(session_dir, ignore_errors=True), zip_path.unlink(missing_ok=True)),
         )
+        return jsonify({"token": token, "filename": "playlist.zip"})
 
     except TimeoutExpired:
+        rmtree(session_dir, ignore_errors=True)
         return jsonify({"error": "Download timed out. Playlist may be too large."}), 408
     except Exception as e:
+        rmtree(session_dir, ignore_errors=True)
         return jsonify({"error": str(e)}), 500
 
 
