@@ -8,7 +8,8 @@ from shutil import rmtree, make_archive
 from datetime import date
 from functools import wraps
 from pathlib import Path
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response
+import threading
+from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for
 from bcrypt import checkpw
 
 app = Flask(__name__)
@@ -185,22 +186,19 @@ def get_file(token):
 
     filepath, safe_name, _mimetype, do_cleanup = entry
 
-    try:
-        data = filepath.read_bytes()
-    except OSError:
-        return jsonify({"error": "File no longer available"}), 404
-    finally:
+    if not filepath.exists():
         do_cleanup()
+        return jsonify({"error": "File no longer available"}), 404
 
-    return Response(
-        data,
+    threading.Timer(300.0, do_cleanup).start()
+
+    return send_file(
+        filepath,
+        as_attachment=True,
+        download_name=safe_name,
         mimetype="application/octet-stream",
-        headers={
-            "Content-Disposition": f'attachment; filename="{safe_name}"',
-            "Content-Length": str(len(data)),
-            "Cache-Control": "no-cache",
-            "Connection": "close",
-        },
+        conditional=False,
+        max_age=0,
     )
 
 
