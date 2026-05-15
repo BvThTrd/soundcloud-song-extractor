@@ -8,8 +8,7 @@ from shutil import rmtree, make_archive
 from datetime import date
 from functools import wraps
 from pathlib import Path
-import io
-from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, after_this_request
 from bcrypt import checkpw
 
 app = Flask(__name__)
@@ -153,13 +152,15 @@ def download():
         filepath = files[0]
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
-        file_bytes = io.BytesIO(filepath.read_bytes())
-        rmtree(session_dir, ignore_errors=True)
-
         mime_map = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
 
+        @after_this_request
+        def cleanup(response):
+            rmtree(session_dir, ignore_errors=True)
+            return response
+
         return send_file(
-            file_bytes,
+            filepath,
             as_attachment=True,
             download_name=safe_name,
             mimetype=mime_map.get(fmt, "application/octet-stream"),
@@ -257,12 +258,14 @@ def download_playlist():
         make_archive(zip_base, "zip", session_dir)
         zip_path = Path(zip_base + ".zip")
 
-        zip_bytes = io.BytesIO(zip_path.read_bytes())
-        rmtree(session_dir, ignore_errors=True)
-        zip_path.unlink(missing_ok=True)
+        @after_this_request
+        def cleanup(response):
+            rmtree(session_dir, ignore_errors=True)
+            zip_path.unlink(missing_ok=True)
+            return response
 
         return send_file(
-            zip_bytes,
+            zip_path,
             as_attachment=True,
             download_name="playlist.zip",
             mimetype="application/zip",
