@@ -17,7 +17,7 @@ const _THUMB_PH =
   '<circle cx="12" cy="12" r="10" stroke="#2E3D52" stroke-width="1.5"/>' +
   '<path d="M9 8l8 4-8 4V8z" fill="#5A6880"/></svg>';
 
-function _makeItem(id, thumbContent, title, meta, badge, state) {
+function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
   const list = document.getElementById('dlQueue');
   const item = document.createElement('div');
   item.className = 'dl-item ' + state;
@@ -26,7 +26,10 @@ function _makeItem(id, thumbContent, title, meta, badge, state) {
     '<div class="dl-thumb">' + thumbContent + '</div>' +
     '<div class="dl-info">' +
       '<div class="dl-title">' + _esc(title) + '</div>' +
-      '<div class="dl-meta">' + _esc(meta) + '</div>' +
+      '<div class="dl-meta-row">' +
+        '<span class="dl-meta">' + _esc(meta) + '</span>' +
+        (fmt ? '<span class="dl-fmt">' + _esc(fmt.toUpperCase()) + '</span>' : '') +
+      '</div>' +
     '</div>' +
     '<div class="dl-status-col">' +
       '<div class="dl-spinner"></div>' +
@@ -44,19 +47,19 @@ function _makeItem(id, thumbContent, title, meta, badge, state) {
 }
 
 // Create a queue entry for a single track (starts in "fetching" state)
-function dlAdd() {
+function dlAdd(fmt) {
   const id = ++_dlId;
-  _makeItem(id, _THUMB_PH, 'Loading…', '', 'Fetching…', 'fetching');
+  _makeItem(id, _THUMB_PH, 'Loading…', '', 'Fetching…', 'fetching', fmt);
   return id;
 }
 
 // Create a queue entry for a playlist (starts directly in "downloading" state)
-function dlAddPlaylist(title, meta) {
+function dlAddPlaylist(title, meta, fmt) {
   const id = ++_dlId;
   const thumbSvg =
     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none">' +
     '<path d="M3 6h18M3 12h18M3 18h12" stroke="#FF5500" stroke-width="2" stroke-linecap="round"/></svg>';
-  _makeItem(id, thumbSvg, title, meta, 'Downloading…', 'downloading');
+  _makeItem(id, thumbSvg, title, meta, 'Downloading…', 'downloading', fmt);
   return id;
 }
 
@@ -178,7 +181,7 @@ document.getElementById('dlBtn').addEventListener('click', async () => {
   dlBtn.disabled = true;
   dlBtn.textContent = 'Working...';
 
-  const qid = dlAdd();
+  const qid = dlAdd(selectedFormat);
 
   // Step 1: fetch track info for the queue preview
   setProgress(true, 'Fetching track info...');
@@ -311,7 +314,7 @@ document.getElementById('dlAllBtn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Working...';
 
-  const qid = dlAddPlaylist(plTitle, plMeta);
+  const qid = dlAddPlaylist(plTitle, plMeta, selectedFormat);
 
   try {
     const res = await guardedFetch('/download-playlist', {

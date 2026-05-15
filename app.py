@@ -8,7 +8,8 @@ from shutil import rmtree, make_archive
 from datetime import date
 from functools import wraps
 from pathlib import Path
-from flask import Flask, request, jsonify, send_file, render_template, after_this_request, session, redirect, url_for
+import io
+from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for
 from bcrypt import checkpw
 
 app = Flask(__name__)
@@ -152,19 +153,16 @@ def download():
         filepath = files[0]
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
-        @after_this_request
-        def cleanup(response):
-            try:
-                rmtree(session_dir, ignore_errors=True)
-            except Exception:
-                pass
-            return response
+        file_bytes = io.BytesIO(filepath.read_bytes())
+        rmtree(session_dir, ignore_errors=True)
+
+        mime_map = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
 
         return send_file(
-            filepath,
+            file_bytes,
             as_attachment=True,
             download_name=safe_name,
-            mimetype="audio/mpeg" if fmt == "mp3" else "application/octet-stream",
+            mimetype=mime_map.get(fmt, "application/octet-stream"),
         )
 
     except TimeoutExpired:
@@ -259,17 +257,12 @@ def download_playlist():
         make_archive(zip_base, "zip", session_dir)
         zip_path = Path(zip_base + ".zip")
 
-        @after_this_request
-        def cleanup(response):
-            try:
-                rmtree(session_dir, ignore_errors=True)
-                zip_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-            return response
+        zip_bytes = io.BytesIO(zip_path.read_bytes())
+        rmtree(session_dir, ignore_errors=True)
+        zip_path.unlink(missing_ok=True)
 
         return send_file(
-            zip_path,
+            zip_bytes,
             as_attachment=True,
             download_name="playlist.zip",
             mimetype="application/zip",

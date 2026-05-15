@@ -381,6 +381,12 @@ h1 span { color: var(--accent); }
   color: var(--text);
   margin-bottom: 3px;
 }
+.dl-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .dl-meta {
   font-family: var(--mono);
   font-size: 0.62rem;
@@ -388,6 +394,19 @@ h1 span { color: var(--accent); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+.dl-fmt {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent);
+  background: rgba(255,85,0,0.1);
+  border: 1px solid rgba(255,85,0,0.18);
+  text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 /* status column */
