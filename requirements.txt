@@ -1,4 +1,4 @@
 flask==3.1.1
-yt-dlp==2025.5.7
+yt-dlp>=2025.1.15
 mutagen==1.47.0
 bcrypt==4.2.1
