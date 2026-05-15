@@ -13,7 +13,8 @@ from bcrypt import checkpw
 
 app = Flask(__name__)
 app.secret_key = token_hex(32)
-PASSWORD_HASH = environ.get("APP_PASSWORD", "").encode()
+_raw_pw = environ.get("APP_PASSWORD", "")
+PASSWORD_HASH = _raw_pw.encode() if _raw_pw.startswith("$2") else None
 
 DOWNLOAD_DIR = Path("/tmp/soundcloud-dl")
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
