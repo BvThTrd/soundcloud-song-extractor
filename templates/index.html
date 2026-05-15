@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SC Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="waveform" id="waveform"></div>
+    <div class="logo-line">
+      <div class="logo-icon">
+        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="17" stroke="#FF5500" stroke-width="1.5"/>
+          <path d="M10 22 Q13 14 18 18 Q22 22 26 12" stroke="#FF5500" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <circle cx="26" cy="12" r="2.5" fill="#FF5500"/>
+        </svg>
+      </div>
+      <h1>SC<span>DL</span></h1>
+    </div>
+    <p class="tagline">SoundCloud -> MP3 with metadata</p>
+  </header>
+
+  <div class="card">
+
+    <!-- FORMAT -->
+    <div class="format-row" id="fmtRow">
+      <button class="fmt-btn active" data-fmt="mp3">MP3</button>
+      <button class="fmt-btn" data-fmt="m4a">M4A</button>
+      <button class="fmt-btn" data-fmt="flac">FLAC</button>
+      <button class="fmt-btn" data-fmt="wav">WAV</button>
+    </div>
+
+    <!-- URL INPUT -->
+    <div class="input-group">
+      <label class="input-label" for="urlInput">SoundCloud URL</label>
+      <input
+        class="url-input"
+        id="urlInput"
+        type="url"
+        placeholder="https://soundcloud.com/artist/track"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="paste-btn" id="pasteBtn" title="Paste from clipboard">PASTE</button>
+    </div>
+
+    <!-- PLAYLIST BAR -->
+    <div class="playlist-bar" id="playlistBar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M3 6h18M3 12h18M3 18h12" stroke="#FF5500" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span id="playlistLabel">Loading playlist...</span>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="preview" id="preview">
+      <div class="preview-thumb-placeholder" id="thumbPlaceholder">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#2E3D52" stroke-width="1.5"/>
+          <path d="M9 8l8 4-8 4V8z" fill="#5A6880"/>
+        </svg>
+      </div>
+      <img class="preview-thumb" id="thumbImg" style="display:none" alt="cover" />
+      <div class="preview-info">
+        <div class="preview-title" id="previewTitle">-</div>
+        <div class="preview-artist" id="previewArtist">-</div>
+        <div class="preview-duration" id="previewDuration"></div>
+      </div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="infoBtn">Preview</button>
+      <button class="btn btn-primary" id="dlBtn">Download</button>
+    </div>
+    <button class="btn btn-playlist" id="dlAllBtn" style="display:none">Download All (ZIP)</button>
+
+    <!-- PROGRESS -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Fetching track...</div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="status" id="status"></div>
+
+  </div>
+
+  <footer>Personal use only &mdash; respect artist rights &mdash; <a href="/logout" style="color:inherit;opacity:0.6;text-decoration:none">logout</a></footer>
+
+</div>
+
+<script src="/static/main.js"></script>
+</body>
+</html>

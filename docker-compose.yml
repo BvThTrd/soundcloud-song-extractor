@@ -1,0 +1,14 @@
+services:
+  soundcloud-dl:
+    build: .
+    container_name: soundcloud-dl
+    ports:
+      - "${PORT:-5000}:${PORT:-5000}"
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
+      APP_PASSWORD: ${APP_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY:-}
+      PORT: ${PORT:-5000}
+    tmpfs:
+      - /tmp/soundcloud-dl:size=2g,mode=1777

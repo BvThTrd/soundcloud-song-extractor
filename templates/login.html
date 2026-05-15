@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SC Downloader — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-line">
+      <div class="logo-icon">
+        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="17" stroke="#FF5500" stroke-width="1.5"/>
+          <path d="M10 22 Q13 14 18 18 Q22 22 26 12" stroke="#FF5500" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <circle cx="26" cy="12" r="2.5" fill="#FF5500"/>
+        </svg>
+      </div>
+      <h1>SC<span>DL</span></h1>
+    </div>
+    <p class="tagline">Private access</p>
+  </header>
+
+  <div class="card">
+    <form method="POST" action="/login" autocomplete="on">
+      <div class="input-group">
+        <label class="input-label" for="password">Password</label>
+        <input
+          class="url-input"
+          id="password"
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          autofocus
+        />
+      </div>
+
+      {% if error %}
+      <div class="status visible error" style="margin-top:12px">{{ error }}</div>
+      {% endif %}
+
+      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:16px">Enter</button>
+    </form>
+  </div>
+
+  <footer>Personal use only &mdash; respect artist rights</footer>
+
+</div>
+</body>
+</html>
