@@ -11,7 +11,7 @@ function _updatePendingBadges() {
 }
 
 function _onJobFinish(qid, state) {
-  dlUpdate(qid, state);
+  if (state) dlUpdate(qid, state);
   _activeCount--;
   if (_pending.length > 0) {
     const job = _pending.shift();
@@ -65,14 +65,8 @@ async function _runTrack(url, fmt, qid) {
       _onJobFinish(qid, 'error');
       return;
     }
-    const a = document.createElement('a');
-    a.href = '/get-file/' + data.token;
-    a.download = data.filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 1000);
-    _onJobFinish(qid, 'done');
+    dlSetReady(qid, data.token, data.filename);
+    _onJobFinish(qid, null);
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
     _onJobFinish(qid, 'error');
@@ -81,7 +75,7 @@ async function _runTrack(url, fmt, qid) {
 
 async function _runPlaylist(url, fmt, qid) {
   _activeCount++;
-  _setItemLive(qid, 'downloading', 'Downloading…');
+  _setItemLive(qid, 'downloading', 'Converting…');
 
   try {
     const res = await guardedFetch('/download-playlist', {
@@ -96,14 +90,8 @@ async function _runPlaylist(url, fmt, qid) {
       _onJobFinish(qid, 'error');
       return;
     }
-    const a = document.createElement('a');
-    a.href = '/get-file/' + data.token;
-    a.download = data.filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 1000);
-    _onJobFinish(qid, 'done');
+    dlSetReady(qid, data.token, data.filename);
+    _onJobFinish(qid, null);
   } catch (err) {
     setStatus('Network error: ' + err.message, 'error');
     _onJobFinish(qid, 'error');
@@ -167,6 +155,7 @@ function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
       '<div class="dl-spinner"></div>' +
       '<div class="dl-item-icon" style="display:none"></div>' +
       '<div class="dl-badge">' + badge + '</div>' +
+      '<a class="dl-download-btn" style="display:none" target="_blank">Download</a>' +
     '</div>' +
     '<button class="dl-item-close" title="Dismiss">\xd7</button>';
 
@@ -197,7 +186,7 @@ function dlAddPlaylist(title, meta, fmt) {
   const thumbSvg =
     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none">' +
     '<path d="M3 6h18M3 12h18M3 18h12" stroke="#FF5500" stroke-width="2" stroke-linecap="round"/></svg>';
-  _makeItem(id, thumbSvg, title, meta, 'Downloading…', 'downloading', fmt);
+  _makeItem(id, thumbSvg, title, meta, 'Converting…', 'downloading', fmt);
   return id;
 }
 
@@ -218,7 +207,7 @@ function dlSetInfo(id, info) {
   if (info.uploader) parts.push(info.uploader);
   if (info.duration) parts.push(fmtDuration(info.duration));
   item.querySelector('.dl-meta').textContent = parts.join(' \xb7 ');
-  item.querySelector('.dl-badge').textContent = 'Downloading…';
+  item.querySelector('.dl-badge').textContent = 'Converting…';
   if (info.thumbnail) {
     const img = document.createElement('img');
     img.src = info.thumbnail;
@@ -234,7 +223,7 @@ function dlSetFallback(id, label) {
   if (!item) return;
   item.className = 'dl-item downloading';
   item.querySelector('.dl-title').textContent = label;
-  item.querySelector('.dl-badge').textContent = 'Downloading…';
+  item.querySelector('.dl-badge').textContent = 'Converting…';
 }
 
 function dlUpdate(id, state) {
@@ -248,6 +237,19 @@ function dlUpdate(id, state) {
   icon.innerHTML = state === 'done'
     ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+}
+
+function dlSetReady(id, token, filename) {
+  const item = document.querySelector('[data-dlid="' + id + '"]');
+  if (!item) return;
+  item.className = 'dl-item ready';
+  item.querySelector('.dl-spinner').style.display = 'none';
+  item.querySelector('.dl-item-icon').style.display = 'none';
+  item.querySelector('.dl-badge').style.display = 'none';
+  const btn = item.querySelector('.dl-download-btn');
+  btn.href = '/get-file/' + token;
+  btn.download = filename;
+  btn.style.display = '';
 }
 
 // -- WAVEFORM BARS --

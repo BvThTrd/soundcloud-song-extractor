@@ -356,6 +356,7 @@ h1 span { color: var(--accent); }
 .dl-item.queued      { border-color: rgba(90,104,128,0.2); opacity: 0.75; }
 .dl-item.fetching    { border-color: rgba(255,85,0,0.15); }
 .dl-item.downloading { border-color: rgba(255,85,0,0.3); }
+.dl-item.ready       { border-color: rgba(46,204,113,0.35); }
 .dl-item.done        { border-color: rgba(46,204,113,0.25); }
 .dl-item.error       { border-color: rgba(231,76,60,0.25); }
 
@@ -450,6 +451,24 @@ h1 span { color: var(--accent); }
 .dl-item.done        .dl-badge { color: var(--success); background: rgba(46,204,113,0.1); }
 .dl-item.error       .dl-badge { color: var(--error);   background: rgba(231,76,60,0.1); }
 
+.dl-download-btn {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: rgba(46,204,113,0.12);
+  border: 1px solid rgba(46,204,113,0.3);
+  color: var(--success);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.dl-download-btn:hover { background: rgba(46,204,113,0.22); }
+
 /* dismiss button */
 .dl-item-close {
   flex-shrink: 0;
@@ -464,6 +483,7 @@ h1 span { color: var(--accent); }
   transition: opacity 0.15s, color 0.15s;
 }
 .dl-item.queued .dl-item-close,
+.dl-item.ready .dl-item-close,
 .dl-item.done .dl-item-close,
 .dl-item.error .dl-item-close { opacity: 0.5; pointer-events: auto; }
 .dl-item-close:hover { opacity: 1; color: var(--text); }
