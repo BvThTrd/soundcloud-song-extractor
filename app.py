@@ -118,6 +118,9 @@ def download():
     today = date.today().strftime("%Y%m%d")
     output_template = str(session_dir / "%(uploader,artist)s - %(title)s.%(ext)s")
 
+    # FLAC/WAV need more time: larger files + lossless encoding easily exceed 120s
+    dl_timeout = 300 if fmt in ("flac", "wav") else 120
+
     cmd = [
         "yt-dlp",
         "--no-playlist",
@@ -136,12 +139,15 @@ def download():
     cmd.append(url)
 
     try:
-        result = run(cmd, capture_output=True, text=True, timeout=120)
+        result = run(cmd, capture_output=True, text=True, timeout=dl_timeout)
 
         if result.returncode != 0:
-            # Fallback: try without thumbnail embedding (some tracks fail)
-            cmd_fallback = [c for c in cmd if c != "--embed-thumbnail"]
-            result = run(cmd_fallback, capture_output=True, text=True, timeout=120)
+            # Fallback: strip thumbnail (mp3/m4a) or metadata embedding (flac/wav)
+            if fmt in ("mp3", "m4a"):
+                cmd_fallback = [c for c in cmd if c != "--embed-thumbnail"]
+            else:
+                cmd_fallback = [c for c in cmd if c != "--embed-metadata"]
+            result = run(cmd_fallback, capture_output=True, text=True, timeout=dl_timeout)
             if result.returncode != 0:
                 return jsonify({"error": "Download failed. The track may be private or geo-restricted."}), 400
 
@@ -160,6 +166,9 @@ def download():
 
         filepath = max(files, key=lambda f: f.stat().st_size)
         app.logger.warning("Selected file: %s (%d bytes)", filepath.name, filepath.stat().st_size)
+
+        if filepath.stat().st_size == 0:
+            return jsonify({"error": "Conversion produced an empty file. ffmpeg may have failed silently."}), 500
         safe_name = sanitize_filename(filepath.stem) + filepath.suffix
 
         mime_map = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
@@ -263,6 +272,8 @@ def download_playlist():
     today = date.today().strftime("%Y%m%d")
     output_template = str(session_dir / "%(playlist_index)02d - %(uploader,artist)s - %(title)s.%(ext)s")
 
+    dl_timeout = 1200 if fmt in ("flac", "wav") else 600
+
     cmd = [
         "yt-dlp",
         "--extract-audio",
@@ -280,11 +291,14 @@ def download_playlist():
     cmd.append(url)
 
     try:
-        result = run(cmd, capture_output=True, text=True, timeout=600)
+        result = run(cmd, capture_output=True, text=True, timeout=dl_timeout)
 
         if result.returncode != 0:
-            cmd_fallback = [c for c in cmd if c != "--embed-thumbnail"]
-            result = run(cmd_fallback, capture_output=True, text=True, timeout=600)
+            if fmt in ("mp3", "m4a"):
+                cmd_fallback = [c for c in cmd if c != "--embed-thumbnail"]
+            else:
+                cmd_fallback = [c for c in cmd if c != "--embed-metadata"]
+            result = run(cmd_fallback, capture_output=True, text=True, timeout=dl_timeout)
             if result.returncode != 0:
                 return jsonify({"error": "Download failed. The playlist may be private or geo-restricted."}), 400
 
