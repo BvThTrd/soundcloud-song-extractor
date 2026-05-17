@@ -121,11 +121,11 @@ def download():
     cmd = [
         "yt-dlp",
         "--no-playlist",
+        "-f", "ba",
         "--extract-audio",
         "--audio-format", fmt,
         "--audio-quality", "0",
         "--embed-metadata",
-        "--add-metadata",
         "--parse-metadata", "%(uploader)s:%(artist)s",
         "--parse-metadata", f"{today}:%(album)s",
         "--output", output_template,

@@ -250,6 +250,18 @@ function dlSetReady(id, token, filename) {
   btn.href = '/get-file/' + token;
   btn.download = filename;
   btn.style.display = '';
+  btn.addEventListener('click', () => {
+    setTimeout(() => {
+      btn.style.display = 'none';
+      item.className = 'dl-item done';
+      const icon = item.querySelector('.dl-item-icon');
+      icon.style.display = 'flex';
+      icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const badge = item.querySelector('.dl-badge');
+      badge.textContent = 'Downloaded';
+      badge.style.display = '';
+    }, 300);
+  }, { once: true });
 }
 
 // -- WAVEFORM BARS --
