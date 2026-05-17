@@ -175,7 +175,7 @@ def download():
         token = uuid4().hex
         _pending_downloads[token] = (
             filepath, safe_name, mime_map.get(fmt, "application/octet-stream"),
-            lambda: rmtree(session_dir, ignore_errors=True),
+            lambda: None,  # TEST: cleanup disabled, files live in session_dir forever
         )
         return jsonify({"token": token, "filename": safe_name})
 
@@ -197,7 +197,7 @@ def get_file(token):
     filepath, safe_name, mimetype, do_cleanup = entry
 
     if not filepath.exists():
-        do_cleanup()
+        # do_cleanup()  # TEST: cleanup disabled
         return jsonify({"error": "File no longer available"}), 404
 
     file_size = filepath.stat().st_size
