@@ -331,13 +331,21 @@ _dom.fmtRow.addEventListener('click', e => {
 });
 
 // -- PASTE BUTTON --
+if (!window.isSecureContext || !navigator.clipboard) {
+  _dom.pasteBtn.title = 'Use Ctrl+V to paste';
+}
 _dom.pasteBtn.addEventListener('click', async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    _dom.urlInput.value = text.trim();
-    _dom.urlInput.dispatchEvent(new Event('input'));
-  } catch {
-    _dom.urlInput.focus();
+  if (window.isSecureContext && navigator.clipboard) {
+    try {
+      const text = await navigator.clipboard.readText();
+      _dom.urlInput.value = text.trim();
+      _dom.urlInput.dispatchEvent(new Event('input'));
+    } catch {
+      _dom.urlInput.select();
+    }
+  } else {
+    _dom.urlInput.select();
+    document.execCommand('paste');
   }
 });
 
