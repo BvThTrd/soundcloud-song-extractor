@@ -444,12 +444,15 @@ h1 span {
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 3px;
-  color: var(--accent);
-  background: rgba(255,85,0,0.1);
-  border: 1px solid rgba(255,85,0,0.18);
+  border: 1px solid;
   text-transform: uppercase;
   flex-shrink: 0;
+  color: var(--accent);
+  background: rgba(255,85,0,0.1);
+  border-color: rgba(255,85,0,0.18);
 }
+.dl-fmt.sc { color: #FF5500; background: rgba(255,85,0,0.1); border-color: rgba(255,85,0,0.25); }
+.dl-fmt.yt { color: #FF0000; background: rgba(255,0,0,0.1); border-color: rgba(255,0,0,0.25); }
 
 /* status column */
 .dl-status-col {

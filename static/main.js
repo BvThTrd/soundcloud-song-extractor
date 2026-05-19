@@ -202,7 +202,7 @@ function _makeItem(id, thumbContent, title, meta, badge, state, fmt, platform) {
       '<div class="dl-meta-row">' +
         '<span class="dl-meta">' + _esc(meta) + '</span>' +
         _platformQueueBadge(platform) +
-        (fmt ? '<span class="dl-fmt">' + _esc(fmt.toUpperCase()) + '</span>' : '') +
+        (fmt ? '<span class="dl-fmt' + (platform ? ' ' + platform : '') + '">' + _esc(fmt.toUpperCase()) + '</span>' : '') +
       '</div>' +
     '</div>' +
     '<div class="dl-status-col">' +
