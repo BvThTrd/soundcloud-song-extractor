@@ -147,7 +147,7 @@ async function _runPlaylist(url, fmt, qid) {
 }
 
 function enqueueTrack(url, fmt) {
-  const qid = dlAdd(fmt);
+  const qid = dlAdd(url, fmt);
   if (_activeCount < MAX_CONCURRENT) {
     _runTrack(url, fmt, qid);
   } else {
@@ -157,7 +157,7 @@ function enqueueTrack(url, fmt) {
 }
 
 function enqueuePlaylist(url, fmt, title, meta) {
-  const qid = dlAddPlaylist(title, meta, fmt);
+  const qid = dlAddPlaylist(url, title, meta, fmt);
   if (_activeCount < MAX_CONCURRENT) {
     _runPlaylist(url, fmt, qid);
   } else {
@@ -185,7 +185,13 @@ const _THUMB_PH =
   '<circle cx="12" cy="12" r="10" stroke="#2E3D52" stroke-width="1.5"/>' +
   '<path d="M9 8l8 4-8 4V8z" fill="#5A6880"/></svg>';
 
-function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
+function _platformQueueBadge(platform) {
+  if (platform === 'sc') return '<span class="dl-platform sc">SC</span>';
+  if (platform === 'yt') return '<span class="dl-platform yt">YT</span>';
+  return '';
+}
+
+function _makeItem(id, thumbContent, title, meta, badge, state, fmt, platform) {
   const item = document.createElement('div');
   item.className = 'dl-item ' + state;
   item.dataset.dlid = id;
@@ -195,6 +201,7 @@ function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
       '<div class="dl-title">' + _esc(title) + '</div>' +
       '<div class="dl-meta-row">' +
         '<span class="dl-meta">' + _esc(meta) + '</span>' +
+        _platformQueueBadge(platform) +
         (fmt ? '<span class="dl-fmt">' + _esc(fmt.toUpperCase()) + '</span>' : '') +
       '</div>' +
     '</div>' +
@@ -221,18 +228,18 @@ function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
   return item;
 }
 
-function dlAdd(fmt) {
+function dlAdd(url, fmt) {
   const id = ++_dlId;
-  _makeItem(id, _THUMB_PH, 'Loading…', '', 'Fetching…', 'fetching', fmt);
+  _makeItem(id, _THUMB_PH, 'Loading…', '', 'Fetching…', 'fetching', fmt, _detectPlatform(url));
   return id;
 }
 
-function dlAddPlaylist(title, meta, fmt) {
+function dlAddPlaylist(url, title, meta, fmt) {
   const id = ++_dlId;
   const thumbSvg =
     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none">' +
     '<path d="M3 6h18M3 12h18M3 18h12" stroke="#FF5500" stroke-width="2" stroke-linecap="round"/></svg>';
-  _makeItem(id, thumbSvg, title, meta, 'Converting…', 'downloading', fmt);
+  _makeItem(id, thumbSvg, title, meta, 'Converting…', 'downloading', fmt, _detectPlatform(url));
   return id;
 }
 

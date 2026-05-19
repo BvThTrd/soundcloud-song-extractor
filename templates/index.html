@@ -45,7 +45,10 @@
 
     <!-- URL INPUT -->
     <div class="input-group">
-      <label class="input-label" for="urlInput">URL</label>
+      <div class="label-row">
+        <label class="input-label" for="urlInput">URL</label>
+        <span id="platformBadge" class="platform-badge" style="display:none"></span>
+      </div>
       <input
         class="url-input"
         id="urlInput"
@@ -56,7 +59,6 @@
       />
       <button class="paste-btn" id="pasteBtn" title="Paste from clipboard">PASTE</button>
     </div>
-    <span id="platformBadge" class="platform-badge" style="display:none"></span>
 
     <!-- PLAYLIST BAR -->
     <div class="playlist-bar" id="playlistBar">

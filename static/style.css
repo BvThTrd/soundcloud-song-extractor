@@ -146,6 +146,12 @@ h1 span {
 .input-group {
   position: relative; margin-bottom: 16px;
 }
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .input-label {
   display: block;
   font-family: var(--mono);
@@ -153,7 +159,7 @@ h1 span {
   color: var(--muted);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 .url-input {
   width: 100%;
@@ -194,8 +200,20 @@ h1 span {
   padding: 2px 8px;
   border-radius: 3px;
   border: 1px solid;
-  margin-bottom: 12px;
 }
+.dl-platform {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.dl-platform.sc { color: #FF5500; background: rgba(255,85,0,0.1); border-color: rgba(255,85,0,0.25); }
+.dl-platform.yt { color: #FF0000; background: rgba(255,0,0,0.1); border-color: rgba(255,0,0,0.25); }
 
 /* -- PREVIEW CARD -- */
 .preview {
