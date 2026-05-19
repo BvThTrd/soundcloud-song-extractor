@@ -1,11 +1,65 @@
+// -- DOM CACHE --
+const _dom = {
+  urlInput:     document.getElementById('urlInput'),
+  playlistBar:  document.getElementById('playlistBar'),
+  playlistLabel:document.getElementById('playlistLabel'),
+  dlAllBtn:     document.getElementById('dlAllBtn'),
+  dlQueue:      document.getElementById('dlQueue'),
+  status:       document.getElementById('status'),
+  fmtRow:       document.getElementById('fmtRow'),
+  pasteBtn:      document.getElementById('pasteBtn'),
+  dlBtn:         document.getElementById('dlBtn'),
+  waveform:      document.getElementById('waveform'),
+  platformBadge: document.getElementById('platformBadge'),
+};
+
+// -- SVG ICONS --
+const _SVG_CHECK =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none">' +
+  '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const _SVG_X =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none">' +
+  '<path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+// -- PLATFORM DETECTION --
+const _SC_HOSTS = new Set(['soundcloud.com', 'www.soundcloud.com', 'on.soundcloud.com', 'm.soundcloud.com']);
+const _YT_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com']);
+
+function _detectPlatform(url) {
+  try {
+    const host = new URL(url).hostname;
+    if (_SC_HOSTS.has(host)) return 'sc';
+    if (_YT_HOSTS.has(host)) return 'yt';
+  } catch {}
+  return null;
+}
+
+function _updatePlatformBadge(url) {
+  const badge = _dom.platformBadge;
+  const p = _detectPlatform(url);
+  if (p === 'sc') {
+    badge.textContent = 'SoundCloud';
+    badge.style.cssText = 'display:inline-block;color:#FF5500;background:rgba(255,85,0,0.1);border-color:rgba(255,85,0,0.25)';
+  } else if (p === 'yt') {
+    badge.textContent = 'YouTube';
+    badge.style.cssText = 'display:inline-block;color:#FF0000;background:rgba(255,0,0,0.1);border-color:rgba(255,0,0,0.25)';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 // -- CONCURRENCY POOL --
 const MAX_CONCURRENT = 5;
 let _activeCount = 0;
 const _pending = []; // { type:'track'|'playlist', url, fmt, qid }
 
+function _getItem(id) {
+  return document.querySelector('[data-dlid="' + id + '"]');
+}
+
 function _updatePendingBadges() {
   _pending.forEach((job, i) => {
-    const el = document.querySelector('[data-dlid="' + job.qid + '"]');
+    const el = _getItem(job.qid);
     if (el) el.querySelector('.dl-badge').textContent = '#' + (i + 1) + ' in queue';
   });
 }
@@ -22,7 +76,7 @@ function _onJobFinish(qid, state) {
 }
 
 function _setItemLive(qid, state, badge) {
-  const el = document.querySelector('[data-dlid="' + qid + '"]');
+  const el = _getItem(qid);
   if (!el) return;
   el.className = 'dl-item ' + state;
   el.querySelector('.dl-badge').textContent = badge;
@@ -33,30 +87,24 @@ async function _runTrack(url, fmt, qid) {
   _activeCount++;
   _setItemLive(qid, 'fetching', 'Fetching…');
 
-  // Fetch track info (format captured at enqueue time, not here)
   try {
     const infoRes = await guardedFetch('/info', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
     });
-    if (infoRes && infoRes.ok) {
-      const data = await infoRes.json();
-      if (data && !data.error) dlSetInfo(qid, data);
-      else dlSetFallback(qid, _labelFromUrl(url));
-    } else {
-      dlSetFallback(qid, _labelFromUrl(url));
-    }
+    const data = infoRes && infoRes.ok ? await infoRes.json().catch(() => null) : null;
+    if (data && !data.error) dlSetInfo(qid, data);
+    else dlSetFallback(qid, _labelFromUrl(url));
   } catch {
     dlSetFallback(qid, _labelFromUrl(url));
   }
 
-  // Download
   try {
     const res = await guardedFetch('/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, format: fmt }) // fmt locked at click time
+      body: JSON.stringify({ url, format: fmt })
     });
     if (!res) { _onJobFinish(qid, 'error'); return; }
     const data = await res.json().catch(() => ({}));
@@ -138,7 +186,6 @@ const _THUMB_PH =
   '<path d="M9 8l8 4-8 4V8z" fill="#5A6880"/></svg>';
 
 function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
-  const list = document.getElementById('dlQueue');
   const item = document.createElement('div');
   item.className = 'dl-item ' + state;
   item.dataset.dlid = id;
@@ -160,18 +207,17 @@ function _makeItem(id, thumbContent, title, meta, badge, state, fmt) {
     '<button class="dl-item-close" title="Dismiss">\xd7</button>';
 
   item.querySelector('.dl-item-close').addEventListener('click', () => {
-    // Cancel if still pending
     const idx = _pending.findIndex(j => j.qid === id);
     if (idx !== -1) {
       _pending.splice(idx, 1);
       _updatePendingBadges();
     }
     item.remove();
-    if (!list.children.length) list.classList.remove('has-items');
+    if (!_dom.dlQueue.children.length) _dom.dlQueue.classList.remove('has-items');
   });
 
-  list.insertBefore(item, list.firstChild);
-  list.classList.add('has-items');
+  _dom.dlQueue.insertBefore(item, _dom.dlQueue.firstChild);
+  _dom.dlQueue.classList.add('has-items');
   return item;
 }
 
@@ -191,7 +237,7 @@ function dlAddPlaylist(title, meta, fmt) {
 }
 
 function dlSetQueued(id, pos) {
-  const item = document.querySelector('[data-dlid="' + id + '"]');
+  const item = _getItem(id);
   if (!item) return;
   item.className = 'dl-item queued';
   item.querySelector('.dl-badge').textContent = '#' + pos + ' in queue';
@@ -199,7 +245,7 @@ function dlSetQueued(id, pos) {
 }
 
 function dlSetInfo(id, info) {
-  const item = document.querySelector('[data-dlid="' + id + '"]');
+  const item = _getItem(id);
   if (!item) return;
   item.className = 'dl-item downloading';
   item.querySelector('.dl-title').textContent = info.title || 'Unknown';
@@ -219,7 +265,7 @@ function dlSetInfo(id, info) {
 }
 
 function dlSetFallback(id, label) {
-  const item = document.querySelector('[data-dlid="' + id + '"]');
+  const item = _getItem(id);
   if (!item) return;
   item.className = 'dl-item downloading';
   item.querySelector('.dl-title').textContent = label;
@@ -227,20 +273,18 @@ function dlSetFallback(id, label) {
 }
 
 function dlUpdate(id, state) {
-  const item = document.querySelector('[data-dlid="' + id + '"]');
+  const item = _getItem(id);
   if (!item) return;
   item.className = 'dl-item ' + state;
   item.querySelector('.dl-badge').textContent = state === 'done' ? 'Done' : 'Failed';
   item.querySelector('.dl-spinner').style.display = 'none';
   const icon = item.querySelector('.dl-item-icon');
   icon.style.display = 'flex';
-  icon.innerHTML = state === 'done'
-    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  icon.innerHTML = state === 'done' ? _SVG_CHECK : _SVG_X;
 }
 
 function dlSetReady(id, token, filename) {
-  const item = document.querySelector('[data-dlid="' + id + '"]');
+  const item = _getItem(id);
   if (!item) return;
   item.className = 'dl-item ready';
   item.querySelector('.dl-spinner').style.display = 'none';
@@ -256,7 +300,7 @@ function dlSetReady(id, token, filename) {
       item.className = 'dl-item done';
       const icon = item.querySelector('.dl-item-icon');
       icon.style.display = 'flex';
-      icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      icon.innerHTML = _SVG_CHECK;
       const badge = item.querySelector('.dl-badge');
       badge.textContent = 'Downloaded';
       badge.style.display = '';
@@ -265,21 +309,20 @@ function dlSetReady(id, token, filename) {
 }
 
 // -- WAVEFORM BARS --
-const wv = document.getElementById('waveform');
 const HEIGHTS = [8,14,20,28,22,16,24,30,18,12,26,20,14,22,16,10,24,20,14,18];
 HEIGHTS.forEach((h, i) => {
   const b = document.createElement('div');
   b.className = 'bar';
   b.style.height = h + 'px';
   b.style.animationDelay = (i * 0.06) + 's';
-  wv.appendChild(b);
+  _dom.waveform.appendChild(b);
 });
 
 // -- STATE --
 let selectedFormat = 'mp3';
 
 // -- FORMAT BUTTONS --
-document.getElementById('fmtRow').addEventListener('click', e => {
+_dom.fmtRow.addEventListener('click', e => {
   const btn = e.target.closest('.fmt-btn');
   if (!btn) return;
   document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
@@ -288,12 +331,13 @@ document.getElementById('fmtRow').addEventListener('click', e => {
 });
 
 // -- PASTE BUTTON --
-document.getElementById('pasteBtn').addEventListener('click', async () => {
+_dom.pasteBtn.addEventListener('click', async () => {
   try {
     const text = await navigator.clipboard.readText();
-    document.getElementById('urlInput').value = text.trim();
+    _dom.urlInput.value = text.trim();
+    _dom.urlInput.dispatchEvent(new Event('input'));
   } catch {
-    document.getElementById('urlInput').focus();
+    _dom.urlInput.focus();
   }
 });
 
@@ -306,12 +350,11 @@ async function guardedFetch(url, opts) {
 
 // -- HELPERS --
 function setStatus(msg, type) {
-  const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = 'status visible ' + type;
+  _dom.status.textContent = msg;
+  _dom.status.className = 'status visible ' + type;
 }
 function clearStatus() {
-  document.getElementById('status').className = 'status';
+  _dom.status.className = 'status';
 }
 function fmtDuration(secs) {
   if (!secs) return '';
@@ -320,26 +363,34 @@ function fmtDuration(secs) {
   return m + ':' + String(s).padStart(2, '0');
 }
 function getURL() {
-  return document.getElementById('urlInput').value.trim();
+  return _dom.urlInput.value.trim();
 }
 
 // -- DOWNLOAD (single track) --
-document.getElementById('dlBtn').addEventListener('click', () => {
+_dom.dlBtn.addEventListener('click', () => {
   const url = getURL();
-  if (!url) { setStatus('Paste a SoundCloud URL first.', 'error'); return; }
+  if (!url) { setStatus('Paste a SoundCloud or YouTube URL first.', 'error'); return; }
   clearStatus();
-  enqueueTrack(url, selectedFormat); // selectedFormat locked here at click time
+  enqueueTrack(url, selectedFormat);
 });
 
 // -- PLAYLIST HELPERS --
 function isPlaylistURL(url) {
-  return /soundcloud\.com\/[^/]+\/sets\//.test(url);
+  if (/soundcloud\.com\/[^/]+\/sets\//.test(url)) return true;
+  try {
+    const u = new URL(url);
+    if (_YT_HOSTS.has(u.hostname)) {
+      return u.pathname === '/playlist' || u.searchParams.has('list');
+    }
+  } catch {}
+  return false;
 }
 
+let _playlistInfoTimer = null;
+
 async function fetchPlaylistInfo(url) {
-  const bar = document.getElementById('playlistBar');
-  bar.classList.add('visible');
-  document.getElementById('playlistLabel').textContent = 'Loading playlist info...';
+  _dom.playlistBar.classList.add('visible');
+  _dom.playlistLabel.textContent = 'Loading playlist info...';
   try {
     const res = await guardedFetch('/playlist-info', {
       method: 'POST',
@@ -349,44 +400,42 @@ async function fetchPlaylistInfo(url) {
     if (!res) return;
     const data = await res.json();
     if (!res.ok || data.error) {
-      document.getElementById('playlistLabel').textContent = 'Playlist detected';
+      _dom.playlistLabel.textContent = 'Playlist detected';
       return;
     }
     const n = data.track_count;
-    document.getElementById('playlistLabel').textContent =
-      `${data.title} — ${n} track${n !== 1 ? 's' : ''}`;
+    _dom.playlistLabel.textContent = `${data.title} — ${n} track${n !== 1 ? 's' : ''}`;
   } catch {
-    document.getElementById('playlistLabel').textContent = 'Playlist detected';
+    _dom.playlistLabel.textContent = 'Playlist detected';
   }
 }
 
 // -- URL INPUT + PLAYLIST DETECTION --
-document.getElementById('urlInput').addEventListener('input', () => {
-  const v = document.getElementById('urlInput').value.trim();
-  if (!/soundcloud\.com/.test(v)) {
-    document.getElementById('playlistBar').classList.remove('visible');
-    document.getElementById('dlAllBtn').style.display = 'none';
-  } else if (isPlaylistURL(v)) {
-    document.getElementById('dlAllBtn').style.display = '';
-    fetchPlaylistInfo(v);
-  } else {
-    document.getElementById('playlistBar').classList.remove('visible');
-    document.getElementById('dlAllBtn').style.display = 'none';
-  }
+_dom.urlInput.addEventListener('input', () => {
+  const v = _dom.urlInput.value.trim();
   clearStatus();
+  _updatePlatformBadge(v);
+  if (isPlaylistURL(v)) {
+    _dom.dlAllBtn.style.display = '';
+    clearTimeout(_playlistInfoTimer);
+    _playlistInfoTimer = setTimeout(() => fetchPlaylistInfo(v), 400);
+  } else {
+    _dom.playlistBar.classList.remove('visible');
+    _dom.dlAllBtn.style.display = 'none';
+  }
 });
 
 // -- DOWNLOAD ALL (playlist) --
-document.getElementById('dlAllBtn').addEventListener('click', () => {
+_dom.dlAllBtn.addEventListener('click', () => {
   const url = getURL();
-  if (!url) { setStatus('Paste a SoundCloud playlist URL first.', 'error'); return; }
+  if (!url) { setStatus('Paste a SoundCloud or YouTube playlist URL first.', 'error'); return; }
   clearStatus();
 
-  const labelText = document.getElementById('playlistLabel').textContent;
+  const labelText = _dom.playlistLabel.textContent;
   const countMatch = labelText.match(/(\d+)\s+track/);
   const count = countMatch ? parseInt(countMatch[1]) : 0;
   const plTitle = labelText.replace(/\s*—.*$/, '').trim() || 'Playlist';
   const plMeta = 'Playlist\xb7' + (count ? count + ' tracks\xb7' : '') + 'ZIP';
 
-  enqueuePlaylist(url, selectedFormat, plTitle, plMeta); // selectedFormat locked here
+  enqueuePlaylist(url, selectedFormat, plTitle, plMeta);
 });

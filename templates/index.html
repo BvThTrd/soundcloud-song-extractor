@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SC Downloader</title>
+  <title>MySoundTube</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 36 36' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='18' cy='18' r='17' stroke='%23FF5500' stroke-width='1.5'/%3E%3Cpath d='M10 22 Q13 14 18 18 Q22 22 26 12' stroke='%23FF5500' stroke-width='1.8' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='26' cy='12' r='2.5' fill='%23FF5500'/%3E%3C/svg%3E" />
 </head>
 <body>
 <div class="wrapper">
@@ -16,14 +17,20 @@
     <div class="logo-line">
       <div class="logo-icon">
         <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="18" cy="18" r="17" stroke="#FF5500" stroke-width="1.5"/>
-          <path d="M10 22 Q13 14 18 18 Q22 22 26 12" stroke="#FF5500" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-          <circle cx="26" cy="12" r="2.5" fill="#FF5500"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#FF5500"/>
+              <stop offset="100%" stop-color="#FF0000"/>
+            </linearGradient>
+          </defs>
+          <circle cx="18" cy="18" r="17" stroke="url(#logoGrad)" stroke-width="1.5"/>
+          <path d="M10 22 Q13 14 18 18 Q22 22 26 12" stroke="url(#logoGrad)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <circle cx="26" cy="12" r="2.5" fill="url(#logoGrad)"/>
         </svg>
       </div>
-      <h1>SC<span>DL</span></h1>
+      <h1>My<span>SoundTube</span></h1>
     </div>
-    <p class="tagline">SoundCloud -> MP3 with metadata</p>
+    <p class="tagline">SoundCloud & YouTube → Audio</p>
   </header>
 
   <div class="card">
@@ -38,17 +45,18 @@
 
     <!-- URL INPUT -->
     <div class="input-group">
-      <label class="input-label" for="urlInput">SoundCloud URL</label>
+      <label class="input-label" for="urlInput">URL</label>
       <input
         class="url-input"
         id="urlInput"
         type="url"
-        placeholder="https://soundcloud.com/artist/track"
+        placeholder="https://soundcloud.com/… or https://youtube.com/…"
         autocomplete="off"
         spellcheck="false"
       />
       <button class="paste-btn" id="pasteBtn" title="Paste from clipboard">PASTE</button>
     </div>
+    <span id="platformBadge" class="platform-badge" style="display:none"></span>
 
     <!-- PLAYLIST BAR -->
     <div class="playlist-bar" id="playlistBar">

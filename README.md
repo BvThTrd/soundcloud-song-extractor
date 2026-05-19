@@ -1,7 +1,7 @@
-SC DOWNLOADER - Docker Setup
-============================
+MySoundTube - Docker Setup
+==========================
 
-A self-hosted web app to download SoundCloud tracks and playlists as
+A self-hosted web app to download SoundCloud and YouTube tracks and playlists as
 MP3/M4A/FLAC/WAV with embedded metadata. Protected by a password login.
 
 
@@ -58,14 +58,15 @@ FEATURES
 --------
 
 Single track
-  - Paste any SoundCloud track URL
+  - Paste any SoundCloud or YouTube track URL
+  - Auto-detects the platform and shows a badge (SoundCloud / YouTube)
   - Preview: fetches title, artist, duration, and cover art
   - Download as MP3, M4A, FLAC, or WAV
 
 Playlist
-  - Paste a SoundCloud /sets/ URL
+  - Paste a SoundCloud /sets/ URL or a YouTube playlist URL
   - A banner shows the playlist name and track count
-  - "Download All (ZIP)" downloads every track in one archive
+  - "Convert All (ZIP)" downloads every track in one archive
 
 Download queue
   - Up to 5 downloads run concurrently
@@ -73,8 +74,8 @@ Download queue
   - Queue drains automatically as slots free up
 
 Metadata embedded in every file
-  - Title:  track title from SoundCloud
-  - Artist: uploader name from SoundCloud
+  - Title:  track title from the source platform
+  - Artist: uploader name from the source platform
   - Album:  download date (YYYYMMDD)
   - Cover:  thumbnail embedded
 
@@ -87,7 +88,7 @@ HOW IT WORKS
 - Frontend: HTML/CSS/JS single-page app
 - Backend:  Flask (Python)
 - Auth:     session cookie, bcrypt-hashed password via APP_PASSWORD env var
-- Download: yt-dlp (SoundCloud support)
+- Download: yt-dlp (SoundCloud and YouTube support)
 - Audio:    ffmpeg (conversion + metadata + thumbnail)
 
 

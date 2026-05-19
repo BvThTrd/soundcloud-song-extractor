@@ -1,7 +1,7 @@
 services:
-  soundcloud-dl:
+  mysoundtube:
     build: .
-    container_name: soundcloud-dl
+    container_name: mysoundtube
     ports:
       - "${PORT:-5000}:${PORT:-5000}"
     restart: unless-stopped
@@ -10,4 +10,4 @@ services:
       APP_PASSWORD: ${APP_PASSWORD}
       PORT: ${PORT:-5000}
     tmpfs:
-      - /tmp/soundcloud-dl:size=2g,mode=1777
+      - /tmp/mysoundtube-dl:size=2g,mode=1777
