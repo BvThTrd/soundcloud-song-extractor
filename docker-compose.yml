@@ -1,0 +1,13 @@
+services:
+  mysoundtube:
+    build: .
+    container_name: mysoundtube
+    ports:
+      - "${PORT:-5000}:${PORT:-5000}"
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
+      APP_PASSWORD: ${APP_PASSWORD}
+      PORT: ${PORT:-5000}
+    tmpfs:
+      - /tmp/mysoundtube-dl:size=2g,mode=1777
