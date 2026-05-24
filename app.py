@@ -161,7 +161,7 @@ def _build_ytdlp_cmd(fmt: str, output_template: str, is_playlist: bool = False) 
         "--output", output_template,
         "--ffmpeg-location", "/usr/bin/ffmpeg",
     ]
-    if fmt in ("mp3", "m4a"):
+    if fmt in ("mp3", "m4a", "flac"):
         cmd.append("--embed-thumbnail")
     return cmd
 
@@ -170,7 +170,7 @@ def _run_with_fallback(cmd: list[str], fmt: str, timeout: int):
     result = run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.returncode == 0:
         return result
-    strip_flag = "--embed-thumbnail" if fmt in ("mp3", "m4a", "mp4") else "--embed-metadata"
+    strip_flag = "--embed-thumbnail" if fmt in ("mp3", "m4a", "flac", "mp4") else "--embed-metadata"
     fallback = [c for c in cmd if c != strip_flag]
     return run(fallback, capture_output=True, text=True, timeout=timeout)
 
