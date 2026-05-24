@@ -46,6 +46,23 @@ function _updatePlatformBadge(url) {
   } else {
     badge.style.display = 'none';
   }
+  _updateMp4Availability(p);
+}
+
+function _updateMp4Availability(platform) {
+  const mp4Btn = document.querySelector('.fmt-btn[data-fmt="mp4"]');
+  if (!mp4Btn) return;
+  if (platform === 'yt') {
+    mp4Btn.style.display = '';
+  } else {
+    mp4Btn.style.display = 'none';
+    if (selectedFormat === 'mp4') {
+      document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+      const mp3Btn = document.querySelector('.fmt-btn[data-fmt="mp3"]');
+      if (mp3Btn) mp3Btn.classList.add('active');
+      selectedFormat = 'mp3';
+    }
+  }
 }
 
 // -- CONCURRENCY POOL --

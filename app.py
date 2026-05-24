@@ -30,8 +30,8 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 TOKEN_TTL_SECONDS = 3600
 
-VALID_FORMATS = frozenset(("mp3", "m4a", "flac", "wav"))
-MIME_MAP = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav"}
+VALID_FORMATS = frozenset(("mp3", "m4a", "flac", "wav", "mp4"))
+MIME_MAP = {"mp3": "audio/mpeg", "m4a": "audio/mp4", "flac": "audio/flac", "wav": "audio/wav", "mp4": "video/mp4"}
 ALLOWED_SCHEMES = {"http", "https"}
 ALLOWED_HOSTS_SC = {"soundcloud.com", "www.soundcloud.com", "on.soundcloud.com", "m.soundcloud.com"}
 ALLOWED_HOSTS_YT = {"youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com", "music.youtube.com"}
@@ -123,6 +123,28 @@ def _parse_download_request() -> tuple[str, str]:
     return url, fmt
 
 
+def _is_youtube_url(url: str) -> bool:
+    try:
+        return urlparse(url).hostname in ALLOWED_HOSTS_YT
+    except Exception:
+        return False
+
+
+def _build_ytdlp_video_cmd(output_template: str, is_playlist: bool = False) -> list[str]:
+    cmd = ["yt-dlp"]
+    if not is_playlist:
+        cmd += ["--no-playlist"]
+    cmd += [
+        "-f", "bv*+ba/b",
+        "--merge-output-format", "mp4",
+        "--embed-metadata",
+        "--embed-thumbnail",
+        "--output", output_template,
+        "--ffmpeg-location", "/usr/bin/ffmpeg",
+    ]
+    return cmd
+
+
 def _build_ytdlp_cmd(fmt: str, output_template: str, is_playlist: bool = False) -> list[str]:
     today = date.today().strftime("%Y%m%d")
     cmd = ["yt-dlp"]
@@ -148,7 +170,7 @@ def _run_with_fallback(cmd: list[str], fmt: str, timeout: int):
     result = run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.returncode == 0:
         return result
-    strip_flag = "--embed-thumbnail" if fmt in ("mp3", "m4a") else "--embed-metadata"
+    strip_flag = "--embed-thumbnail" if fmt in ("mp3", "m4a", "mp4") else "--embed-metadata"
     fallback = [c for c in cmd if c != strip_flag]
     return run(fallback, capture_output=True, text=True, timeout=timeout)
 
@@ -231,12 +253,18 @@ def download():
         return jsonify({"error": "No URL provided"}), 400
     if not _validate_url(url):
         return jsonify({"error": "Invalid URL. Only SoundCloud and YouTube URLs are supported."}), 400
+    if fmt == "mp4" and not _is_youtube_url(url):
+        return jsonify({"error": "MP4 video download is only available for YouTube URLs."}), 400
 
     session_dir = DOWNLOAD_DIR / uuid4().hex
     session_dir.mkdir(parents=True, exist_ok=True)
     output_template = str(session_dir / "%(uploader,artist)s - %(title)s.%(ext)s")
-    dl_timeout = 300 if fmt in ("flac", "wav") else 120
-    cmd = _build_ytdlp_cmd(fmt, output_template) + [url]
+    if fmt == "mp4":
+        dl_timeout = 600
+        cmd = _build_ytdlp_video_cmd(output_template) + [url]
+    else:
+        dl_timeout = 300 if fmt in ("flac", "wav") else 120
+        cmd = _build_ytdlp_cmd(fmt, output_template) + [url]
 
     try:
         result = _run_with_fallback(cmd, fmt, dl_timeout)
@@ -313,12 +341,18 @@ def download_playlist():
         return jsonify({"error": "No URL provided"}), 400
     if not _validate_url(url):
         return jsonify({"error": "Invalid URL. Only SoundCloud and YouTube URLs are supported."}), 400
+    if fmt == "mp4" and not _is_youtube_url(url):
+        return jsonify({"error": "MP4 video download is only available for YouTube URLs."}), 400
 
     session_dir = DOWNLOAD_DIR / uuid4().hex
     session_dir.mkdir(parents=True, exist_ok=True)
     output_template = str(session_dir / "%(playlist_index)02d - %(uploader,artist)s - %(title)s.%(ext)s")
-    dl_timeout = 1200 if fmt in ("flac", "wav") else 600
-    cmd = _build_ytdlp_cmd(fmt, output_template, is_playlist=True) + [url]
+    if fmt == "mp4":
+        dl_timeout = 3600
+        cmd = _build_ytdlp_video_cmd(output_template, is_playlist=True) + [url]
+    else:
+        dl_timeout = 1200 if fmt in ("flac", "wav") else 600
+        cmd = _build_ytdlp_cmd(fmt, output_template, is_playlist=True) + [url]
 
     try:
         result = _run_with_fallback(cmd, fmt, dl_timeout)
