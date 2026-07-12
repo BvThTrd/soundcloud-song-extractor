@@ -170,6 +170,16 @@ def _run_with_fallback(cmd: list[str], fmt: str, timeout: int):
     result = run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.returncode == 0:
         return result
+    # Retry without "-f ba" (e.g. SoundCloud HLS 404)
+    if "-f" in cmd and "ba" in cmd:
+        idx = cmd.index("-f")
+        if cmd[idx + 1] == "ba":
+            no_format = cmd[:idx] + cmd[idx + 2:]
+            result = run(no_format, capture_output=True, text=True, timeout=timeout)
+            if result.returncode == 0:
+                return result
+            cmd = no_format
+    # Last resort: strip embed-thumbnail / embed-metadata
     strip_flag = "--embed-thumbnail" if fmt in ("mp3", "m4a", "flac", "mp4") else "--embed-metadata"
     fallback = [c for c in cmd if c != strip_flag]
     return run(fallback, capture_output=True, text=True, timeout=timeout)
@@ -191,7 +201,7 @@ def login():
     error = None
     if request.method == "POST":
         pwd = (request.form.get("password") or "").strip()
-        if PASSWORD_HASH and checkpw(pwd.encode(), PASSWORD_HASH):
+        if PASSWORD_HASH and len(pwd.encode()) <= 72 and checkpw(pwd.encode(), PASSWORD_HASH):
             session["authenticated"] = True
             return redirect(url_for("index"))
         error = "Wrong password."
